@@ -153,3 +153,13 @@ input[type="number"] {
 		cursor: pointer;
 	}
 }
+
+.dark {
+	color: rgb(219, 222, 226);
+	/* gray-100 */
+}
+
+table th,
+table td {
+	color: rgb(243 244 246) !important;
+}

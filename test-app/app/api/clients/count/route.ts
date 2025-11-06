@@ -1,9 +1,9 @@
 import prisma from "@/lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
+    const users = await prisma.user.count({
 		where: {
 			isConsultant: {
 				contains: "false",
@@ -17,6 +17,3 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
   }
 }
-
-
-

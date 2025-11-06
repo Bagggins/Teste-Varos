@@ -1,4 +1,5 @@
 "use client";
+//ajustar selects!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,18 +12,11 @@ import {
 import { Field, FieldGroup, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { UserType } from "@/src/Types/user";
 import { Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 interface ClientType {
   id: string;
@@ -31,6 +25,8 @@ interface ClientType {
 
 interface UserFormProps {
   isEdit: boolean;
+  open: boolean;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   userData?: UserType;
 }
 
@@ -40,14 +36,13 @@ export default function UserForm(props: UserFormProps) {
   const [clientList, setClientList] = useState<ClientType[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Fetch clients when dialog opens and user is consultant
   useEffect(() => {
-    if (isDialogOpen && userFormData.isConsultant === "true") {
+    if (props.open && userFormData.isConsultant === "true") {
       fetchClients();
     }
-  }, [isDialogOpen, userFormData.isConsultant]);
+  }, [props.open, userFormData.isConsultant]);
 
   async function fetchClients() {
     setIsLoadingClients(true);
@@ -116,7 +111,7 @@ export default function UserForm(props: UserFormProps) {
       console.log("User created:", result);
 
       // Close dialog on success
-      setIsDialogOpen(false);
+      props.onOpenChange(false);
 
       // Reset form
       setUserFormData({} as UserType);
@@ -129,7 +124,7 @@ export default function UserForm(props: UserFormProps) {
   }
 
   async function changeUserTypeHandler(value: string) {
-    if (value === "false") {
+    if (value === "false" || value === "") {
       setActiveTab("info");
       setSelectedClients([]);
       setUserFormData({
@@ -162,8 +157,8 @@ export default function UserForm(props: UserFormProps) {
   }
 
   function handleDialogOpen() {
-    setIsDialogOpen(!isDialogOpen);
-    if (!isDialogOpen) {
+    props.onOpenChange(!props.open);
+    if (!props.open) {
       setActiveTab("info");
       setUserFormData({} as UserType);
       setSelectedClients([]);
@@ -171,14 +166,7 @@ export default function UserForm(props: UserFormProps) {
   }
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={handleDialogOpen}>
-      <DialogTrigger asChild>
-        <button className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium">
-          {props.isEdit ? "Editar usuário" : "Criar usuário"}
-          <Plus className="w-4 h-4" />
-        </button>
-      </DialogTrigger>
-
+    <Dialog open={props.open} onOpenChange={handleDialogOpen}>
       <DialogContent className="max-w-2xl bg-[#121212] border-gray-800 text-gray-100">
         <form
           onSubmit={(e) => {
