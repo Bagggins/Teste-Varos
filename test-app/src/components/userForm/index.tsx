@@ -1,6 +1,5 @@
 "use client";
 
-import { POST } from "@/app/api/users/route";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
+import { Field, FieldGroup, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,36 +21,160 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { UserType } from "@/src/Types/user";
-import { Plus } from "lucide-react";
-import { useState } from "react";
-//isEdit, userData?, userDataType
-interface UserFoormProps {
+import { Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+
+interface ClientType {
+  id: string;
+  name: string;
+}
+
+interface UserFormProps {
   isEdit: boolean;
   userData?: UserType;
 }
-export default function UserForm(props: UserFoormProps) {
+
+export default function UserForm(props: UserFormProps) {
   const [userFormData, setUserFormData] = useState<UserType>({} as UserType);
   const [activeTab, setActiveTab] = useState("info");
+  const [clientList, setClientList] = useState<ClientType[]>([]);
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  async function onSend(formData: UserType) {
-    const response = await fetch("/api/users", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
+  // Fetch clients when dialog opens and user is consultant
+  useEffect(() => {
+    if (isDialogOpen && userFormData.isConsultant === "true") {
+      fetchClients();
+    }
+  }, [isDialogOpen, userFormData.isConsultant]);
 
-    console.log(response);
+  async function fetchClients() {
+    setIsLoadingClients(true);
+    try {
+      const response = await fetch("/api/clients", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch clients");
+      }
+
+      const data = await response.json();
+      console.log("Fetched clients:", data); // Debug log
+
+      // Map to correct structure - API already filters clients
+      const mappedClients = Array.isArray(data)
+        ? data.map((user: any) => ({
+            id: user.id.toString(), // Convert to string for consistency
+            name: user.name,
+          }))
+        : [];
+
+      console.log("Mapped clients:", mappedClients); // Debug log
+      setClientList(mappedClients);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+      alert("Erro ao carregar clientes. Por favor, tente novamente.");
+    } finally {
+      setIsLoadingClients(false);
+    }
   }
 
-  async function changeUserTypeHandler() {}
+  async function onSend(formData: UserType) {
+    // Add selected clients to form data before sending
+    const dataToSend = {
+      ...formData,
+      clientList: formData.isConsultant === "true" ? selectedClients : null,
+    };
+
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle specific error cases
+        if (response.status === 409 || errorData.code === "P2002") {
+          alert("Este email já está cadastrado. Por favor, use outro email.");
+          return;
+        }
+
+        throw new Error(errorData.message || "Failed to create user");
+      }
+
+      const result = await response.json();
+      console.log("User created:", result);
+
+      // Close dialog on success
+      setIsDialogOpen(false);
+
+      // Reset form
+      setUserFormData({} as UserType);
+      setSelectedClients([]);
+      setActiveTab("info");
+    } catch (error) {
+      console.error("Error creating user:", error);
+      alert("Erro ao criar usuário. Por favor, tente novamente.");
+    }
+  }
+
+  async function changeUserTypeHandler(value: string) {
+    if (value === "false") {
+      setActiveTab("info");
+      setSelectedClients([]);
+      setUserFormData({
+        ...userFormData,
+        clientList: null,
+        isConsultant: value,
+      });
+    } else {
+      setUserFormData({
+        ...userFormData,
+        isConsultant: value,
+      });
+    }
+  }
+
+  function addClient(clientId: string) {
+    if (!selectedClients.includes(clientId)) {
+      setSelectedClients([...selectedClients, clientId]);
+    }
+  }
+
+  function removeClient(clientId: string) {
+    setSelectedClients(selectedClients.filter((id) => id !== clientId));
+  }
+
+  function getClientNameById(clientId: string) {
+    const client = clientList.find((client) => client.id === clientId);
+    console.log(client);
+    return client?.name || clientId; // Fallback to ID if name not found
+  }
+
+  function handleDialogOpen() {
+    setIsDialogOpen(!isDialogOpen);
+    if (!isDialogOpen) {
+      setActiveTab("info");
+      setUserFormData({} as UserType);
+      setSelectedClients([]);
+    }
+  }
 
   return (
-    <Dialog>
+    <Dialog open={isDialogOpen} onOpenChange={handleDialogOpen}>
       <DialogTrigger asChild>
         <button className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium">
-          Criar usuário
+          {props.isEdit ? "Editar usuário" : "Criar usuário"}
           <Plus className="w-4 h-4" />
         </button>
       </DialogTrigger>
@@ -74,6 +197,7 @@ export default function UserForm(props: UserFoormProps) {
                 <Plus className="w-4 h-4" />
               </Button>
               <Button
+                hidden={!props.isEdit}
                 type="button"
                 className="w-fit flex items-center gap-2 hover:bg-red-800 text-white rounded-md px-4 py-2 text-sm font-medium"
               >
@@ -82,38 +206,30 @@ export default function UserForm(props: UserFoormProps) {
               </Button>
             </DialogHeader>
 
-            {/* Form content */}
             <FieldSet>
-              {/* Tipo do usuário */}
               <div>
                 <Label htmlFor="user-type">Tipo do usuário</Label>
-                <Select
-                  required
+                <select
+                  value={userFormData.isConsultant || undefined}
+                  id="user-type"
                   name="user-type"
-                  onValueChange={(value: string) =>
-                    setUserFormData({
-                      ...userFormData,
-                      isConsultant: value,
-                    })
-                  }
+                  required
+                  onChange={(e) => changeUserTypeHandler(e.target.value)}
+                  className="flex h-10 w-[50%] mt-3 rounded-md border border-gray-700 bg-[#1a1a1a] px-3 py-2 text-sm text-gray-300 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <SelectTrigger
-                    id="user-type"
-                    className="bg-[#1a1a1a] border-gray-700 text-gray-300"
-                  >
-                    <SelectValue placeholder="Selecione o tipo do usuário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="false">Client</SelectItem>
-                    <SelectItem value="true">Consultor</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="">Selecione o tipo do usuário</option>
+                  <option value="false">Cliente</option>
+                  <option value="true">Consultor</option>
+                </select>
               </div>
-              {/* Nome e Telefone */}
+
               <FieldGroup className="grid grid-cols-2 gap-2">
                 <Field>
-                  <Label>Nome</Label>
+                  <Label htmlFor="name">Nome</Label>
                   <Input
+                    value={userFormData.name}
+                    id="name"
+                    name="name"
                     required
                     onChange={(event) =>
                       setUserFormData({
@@ -126,8 +242,11 @@ export default function UserForm(props: UserFoormProps) {
                   />
                 </Field>
                 <Field>
-                  <Label>Telefone</Label>
+                  <Label htmlFor="phone">Telefone</Label>
                   <Input
+                    value={userFormData.phone}
+                    id="phone"
+                    name="phone"
                     required
                     type="tel"
                     onChange={(event) =>
@@ -142,10 +261,12 @@ export default function UserForm(props: UserFoormProps) {
                 </Field>
               </FieldGroup>
 
-              {/* Email */}
               <Field>
-                <Label>Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
+                  value={userFormData.email}
+                  id="email"
+                  name="email"
                   required
                   onChange={(event) =>
                     setUserFormData({
@@ -159,8 +280,7 @@ export default function UserForm(props: UserFoormProps) {
                 />
               </Field>
 
-              {/* Tabs */}
-              <Tabs defaultValue="info">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="bg-transparent border-b border-gray-800 w-full justify-start mb-2">
                   <TabsTrigger
                     value="info"
@@ -169,12 +289,9 @@ export default function UserForm(props: UserFoormProps) {
                     Informações básica
                   </TabsTrigger>
                   <TabsTrigger
-                    disabled={
-                      userFormData.isConsultant === "false" ||
-                      props.userData?.isConsultant === "false"
-                    }
+                    disabled={userFormData.isConsultant !== "true"}
                     value="clients"
-                    className="text-gray-400 data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white"
+                    className="text-gray-400 data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Adicionar clientes
                   </TabsTrigger>
@@ -183,8 +300,11 @@ export default function UserForm(props: UserFoormProps) {
                 <TabsContent value="info" className="space-y-4">
                   <FieldGroup className="grid grid-cols-2 gap-4">
                     <Field>
-                      <Label>Idade</Label>
+                      <Label htmlFor="age">Idade</Label>
                       <Input
+                        value={userFormData.age}
+                        id="age"
+                        name="age"
                         required
                         type="number"
                         onChange={(event) =>
@@ -198,8 +318,11 @@ export default function UserForm(props: UserFoormProps) {
                       />
                     </Field>
                     <Field>
-                      <Label>CPF</Label>
+                      <Label htmlFor="cpf">CPF</Label>
                       <Input
+                        value={userFormData.cpf}
+                        id="cpf"
+                        name="cpf"
                         required
                         onChange={(event) =>
                           setUserFormData({
@@ -215,8 +338,11 @@ export default function UserForm(props: UserFoormProps) {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>CEP</Label>
+                      <Label htmlFor="cep">CEP</Label>
                       <Input
+                        value={userFormData.cep}
+                        id="cep"
+                        name="cep"
                         required
                         onChange={(event) =>
                           setUserFormData({
@@ -229,28 +355,34 @@ export default function UserForm(props: UserFoormProps) {
                       />
                     </div>
                     <div>
-                      <Label>Estado</Label>
-                      <Select
+                      <Label htmlFor="state">Estado</Label>
+                      <select
+                        value={userFormData.state}
+                        id="state"
+                        name="state"
                         required
-                        onValueChange={(value: string) =>
-                          setUserFormData({ ...userFormData, state: value })
+                        onChange={(e) =>
+                          setUserFormData({
+                            ...userFormData,
+                            state: e.target.value,
+                          })
                         }
+                        className="flex h-10 w-full rounded-md border border-gray-700 bg-[#1a1a1a] px-3 py-2 text-sm text-gray-300 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       >
-                        <SelectTrigger className="bg-[#1a1a1a] border-gray-700 text-gray-300">
-                          <SelectValue placeholder="Selecione o estado" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="sp">São Paulo</SelectItem>
-                          <SelectItem value="rj">Rio de Janeiro</SelectItem>
-                          <SelectItem value="mg">Minas Gerais</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <option value="">Selecione o estado</option>
+                        <option value="sp">São Paulo</option>
+                        <option value="rj">Rio de Janeiro</option>
+                        <option value="mg">Minas Gerais</option>
+                      </select>
                     </div>
                   </div>
 
                   <div>
-                    <Label>Endereço</Label>
+                    <Label htmlFor="address">Endereço</Label>
                     <Input
+                      value={userFormData.address}
+                      id="address"
+                      name="address"
                       required
                       onChange={(event) =>
                         setUserFormData({
@@ -264,8 +396,11 @@ export default function UserForm(props: UserFoormProps) {
                   </div>
 
                   <div>
-                    <Label>Complemento</Label>
+                    <Label htmlFor="addon">Complemento</Label>
                     <Input
+                      value={userFormData.addon}
+                      id="addon"
+                      name="addon"
                       onChange={(event) =>
                         setUserFormData({
                           ...userFormData,
@@ -278,10 +413,73 @@ export default function UserForm(props: UserFoormProps) {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="clients">
-                  <p className="text-sm text-gray-500">
-                    Área para adicionar clientes em breve.
-                  </p>
+                <TabsContent value="clients" className="space-y-4">
+                  <div>
+                    <Label htmlFor="client-select">Selecionar Cliente</Label>
+                    <select
+                      id="client-select"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          addClient(e.target.value);
+                          e.target.value = ""; // Reset select
+                        }
+                      }}
+                      disabled={isLoadingClients}
+                      className="flex h-10 w-full mt-3 rounded-md border border-gray-700 bg-[#1a1a1a] px-3 py-2 text-sm text-gray-300 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+                    >
+                      <option value="">
+                        {isLoadingClients
+                          ? "Carregando clientes..."
+                          : "Selecione um cliente"}
+                      </option>
+                      {clientList
+                        .filter(
+                          (client) => !selectedClients.includes(client.id)
+                        )
+                        .map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Selected Clients List */}
+                  {selectedClients.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>
+                        Clientes Selecionados ({selectedClients.length})
+                      </Label>
+                      <div className="flex flex-row gap-1">
+                        {selectedClients.map((clientId) => {
+                          const clientName = getClientNameById(clientId);
+                          return (
+                            <div
+                              key={clientId}
+                              className="flex w-[30%] items-center justify-between bg-[#1a1a1a] border border-gray-700 rounded-md px-3 py-2"
+                            >
+                              <span className="text-sm text-gray-200">
+                                {clientName}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeClient(clientId)}
+                                className="text-red-500 hover:text-red-400 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedClients.length === 0 && (
+                    <p className="text-sm text-gray-500">
+                      Nenhum cliente selecionado ainda.
+                    </p>
+                  )}
                 </TabsContent>
               </Tabs>
             </FieldSet>
