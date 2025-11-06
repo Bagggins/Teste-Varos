@@ -1,21 +1,17 @@
 import Image from "next/image";
-import { PrismaClient } from '@prisma/client/edge'
-import { withAccelerate } from '@prisma/extension-accelerate'
+import prisma from "@/lib/prisma";
 
-const prisma = new PrismaClient().$extends(withAccelerate())
+export default async function Home() {
+	const testString = await prisma.user.findMany({
+		where: {
+			email: {
+				contains: "teste",
+			},
+		},
+		cacheStrategy: { ttl: 60 },
+	});
 
-const testString = await prisma.user.findMany({
-  where: {
-    email: {
-      contains: "teste@teste.com",
-    },
-  },
-  cacheStrategy: { ttl: 60 },
-});
-
-console.log(testString)
-
-export default function Home() {
+	console.log("prisma:",testString)
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">

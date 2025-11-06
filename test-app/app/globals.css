@@ -133,3 +133,23 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+	/* Optional: Adjust margin if needed */
+}
+
+/* For Mozilla Firefox */
+input[type="number"] {
+	-moz-appearance: textfield;
+}
+
+@layer base {
+
+	button,
+	[role="button"] {
+		cursor: pointer;
+	}
+}
