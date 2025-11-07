@@ -1,13 +1,25 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
-export default function ClientCounter() {
+interface ClientCounterProps {
+  needsRefresh: boolean;
+  setNeedsRefresh: Dispatch<SetStateAction<boolean>>;
+}
+
+export default function ClientCounter(props: ClientCounterProps) {
   const [totalClients, setTotalClients] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     handleGetCounter();
   }, []);
+
+  useEffect(() => {
+    if (props.needsRefresh === true) {
+      handleGetCounter();
+      props.setNeedsRefresh(false);
+    }
+  }, [props, props.needsRefresh]);
 
   async function handleGetCounter() {
     try {
@@ -31,8 +43,8 @@ export default function ClientCounter() {
     }
   }
 
-  return isLoading ? (
-    <Skeleton className="h-10 w-[600px]" />
+  return isLoading || props.needsRefresh ? (
+    <Skeleton className="opacity-10 h-10 w-[30%]" />
   ) : (
     <div className="mb-8 w-fit">
       <div className="items-center bg-[#151515] border border-gray-800 rounded-lg p-5 w-[100%]">

@@ -37,6 +37,9 @@ export default function ClientTable() {
   const [endDate, setEndDate] = useState<string>("");
   const [isNewUserFormOpen, setIsNewUserFormOpen] = useState(false);
   const [isEditUserFormOpen, setIsEditUserFormOpen] = useState(false);
+  const [isEditClientFormOpen, setIsEditClientFormOpen] = useState(false);
+  const [counterRefresh, setCounterRefresh] = useState(false);
+  const [editingClient, setEditingClient] = useState<UserType | null>(null);
 
   // Fetch consultants on mount
   useEffect(() => {
@@ -46,11 +49,16 @@ export default function ClientTable() {
   // Fetch clients when consultant changes
   useEffect(() => {
     if (selectedConsultantId) {
-      const consultant = consultantList.find(
-        (c) => c.id.toString() === selectedConsultantId
-      );
-      if (consultant) {
-        fetchClientsForConsultant(consultant);
+      if (selectedConsultantId === "all") {
+        fetchAllClients();
+        setSelectedConsultantData({} as UserType);
+      } else {
+        const consultant = consultantList.find(
+          (c) => c.id.toString() === selectedConsultantId
+        );
+        if (consultant) {
+          fetchClientsForConsultant(consultant);
+        }
       }
     } else {
       setClientList([]);
@@ -100,9 +108,8 @@ export default function ClientTable() {
       const data = await response.json();
       setConsultantList(data);
 
-      // Auto-select first consultant
       if (data.length > 0) {
-        setSelectedConsultantId(data[0].id.toString());
+        setSelectedConsultantId("all");
       }
     } catch (error) {
       console.error("Error fetching consultants:", error);
@@ -112,19 +119,43 @@ export default function ClientTable() {
     }
   }
 
+  async function fetchAllClients() {
+    setIsLoadingClients(true);
+    try {
+      const response = await fetch("/api/clients", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch all clients");
+      }
+
+      const data = await response.json();
+      setClientList(data);
+      setFilteredClientList(data);
+    } catch (error) {
+      console.error("Error fetching all clients:", error);
+      setClientList([]);
+      setFilteredClientList([]);
+    } finally {
+      setIsLoadingClients(false);
+    }
+  }
+
   async function fetchClientsForConsultant(consultant: UserType) {
     // If consultant has no clients, don't fetch
-    if (!consultant.clientList || consultant.clientList.length === 0) {
-      setClientList([]);
-      return;
-    }
     setSelectedConsultantData(consultant);
     setIsLoadingClients(true);
     try {
       // Ensure clientList contains numbers, not strings
-      const clientIds = consultant.clientList.map((id) =>
-        typeof id === "string" ? parseInt(id, 10) : id
-      );
+      const clientIds =
+        consultant.clientList &&
+        consultant.clientList.map((id) =>
+          typeof id === "string" ? parseInt(id, 10) : id
+        );
 
       const response = await fetch("/api/clients/by-consultant", {
         method: "POST",
@@ -163,13 +194,29 @@ export default function ClientTable() {
   }
 
   function handleEditClient(client: UserType) {
-    console.log("Edit client:", client);
-    // Dialog implementation will come later
+    setEditingClient(client);
+    setIsEditClientFormOpen(true);
   }
 
-  const selectedConsultant = consultantList.find(
-    (c) => c.id.toString() === selectedConsultantId
-  );
+  function handleRefreshData() {
+    // Refetch consultants
+    fetchConsultants();
+    setSelectedConsultantId("all");
+    setEditingClient(null);
+    setCounterRefresh(true);
+
+    // Refetch clients if a consultant is selected
+    if (selectedConsultantId === "all") {
+      fetchAllClients();
+    } else if (selectedConsultantId) {
+      const consultant = consultantList.find(
+        (c) => c.id.toString() === selectedConsultantId
+      );
+      if (consultant) {
+        fetchClientsForConsultant(consultant);
+      }
+    }
+  }
 
   const isLoading = isLoadingConsultants || isLoadingClients;
 
@@ -180,7 +227,10 @@ export default function ClientTable() {
 
         {/* Filters and Actions */}
         <div className="flex justify-between items-start mb-6">
-          <ClientCounter />
+          <ClientCounter
+            needsRefresh={counterRefresh}
+            setNeedsRefresh={setCounterRefresh}
+          />
 
           <div className="flex flex-col items-end gap-4">
             {/* Action Buttons */}
@@ -197,13 +247,15 @@ export default function ClientTable() {
                 open={isNewUserFormOpen}
                 onOpenChange={setIsNewUserFormOpen}
                 isEdit={false}
+                onSuccess={handleRefreshData}
               />
               <Button
                 onClick={() => setIsEditUserFormOpen(true)}
                 disabled={
                   !selectedConsultantId ||
                   isLoadingConsultants ||
-                  isLoadingClients
+                  isLoadingClients ||
+                  selectedConsultantId === "all"
                 }
                 className="flex items-center gap-2 bg-green-800 hover:bg-green-900 text-white disabled:opacity-50"
               >
@@ -212,6 +264,7 @@ export default function ClientTable() {
               </Button>
 
               <UserForm
+                onSuccess={handleRefreshData}
                 open={isEditUserFormOpen}
                 onOpenChange={setIsEditUserFormOpen}
                 isEdit={true}
@@ -221,7 +274,7 @@ export default function ClientTable() {
 
             {/* Filters */}
             {isLoadingConsultants ? (
-              <Skeleton className="h-10 w-[600px]" />
+              <Skeleton className=" opacity-10 h-10 w-[600px]" />
             ) : (
               <div className="flex gap-2">
                 {/* Consultant Name Selector */}
@@ -231,13 +284,19 @@ export default function ClientTable() {
                       Nome do consultor
                     </label>
                     <Select
-                      value={selectedConsultantId}
+                      defaultValue="all"
                       onValueChange={setSelectedConsultantId}
                     >
                       <SelectTrigger className="w-[180px] bg-transparent border-0 text-sm h-auto p-0 text-gray-100">
                         <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#1a1a1a] border-gray-700 text-gray-100">
+                        <SelectItem
+                          value={"all"}
+                          className="text-gray-100 focus:bg-gray-800 focus:text-gray-100"
+                        >
+                          Nenhum
+                        </SelectItem>
                         {consultantList.map((consultant) => (
                           <SelectItem
                             key={consultant.id}
@@ -259,7 +318,7 @@ export default function ClientTable() {
                       Email do consultor
                     </label>
                     <span className="text-sm text-gray-100">
-                      {selectedConsultant?.email || "-"}
+                      {selectedConsultantData.email || "-"}
                     </span>
                   </div>
                 </Card>
@@ -295,7 +354,7 @@ export default function ClientTable() {
         {/* Clients Table */}
         <Card className="bg-[#151515] border-gray-800 text-gray-100">
           {isLoading ? (
-            <div className="p-8 space-y-3">
+            <div className="p-8 space-y-3 opacity-10">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
@@ -372,6 +431,15 @@ export default function ClientTable() {
             </Table>
           )}
         </Card>
+        {editingClient && (
+          <UserForm
+            open={isEditClientFormOpen}
+            onOpenChange={setIsEditClientFormOpen}
+            isEdit={true}
+            onSuccess={handleRefreshData}
+            userData={editingClient}
+          />
+        )}
       </main>
     </div>
   );

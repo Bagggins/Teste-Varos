@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -15,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { UserType } from "@/src/Types/user";
-import { Plus, X } from "lucide-react";
+import { Pencil, Plus, Trash, X } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
 interface ClientType {
@@ -28,10 +27,26 @@ interface UserFormProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
   userData?: UserType;
+  onSuccess: () => void;
 }
 
 export default function UserForm(props: UserFormProps) {
-  const [userFormData, setUserFormData] = useState<UserType>({} as UserType);
+  const [userFormData, setUserFormData] = useState<UserType>({
+    id: "0",
+    name: "",
+    email: "",
+    phone: "",
+    cpf: "",
+    age: "",
+    address: "",
+    addon: "",
+    cep: "",
+    state: "",
+    isConsultant: "",
+    clientList: null,
+    createdAt: "",
+    lastUpdated: "",
+  });
   const [activeTab, setActiveTab] = useState("info");
   const [clientList, setClientList] = useState<ClientType[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
@@ -42,7 +57,14 @@ export default function UserForm(props: UserFormProps) {
     if (props.open && userFormData.isConsultant === "true") {
       fetchClients();
     }
-  }, [props.open, userFormData.isConsultant]);
+
+    if (props.userData) {
+      setUserFormData(props.userData);
+      if (props.userData.clientList && props.userData.clientList.length > 0) {
+        setSelectedClients(props.userData.clientList);
+      }
+    }
+  }, [props.open, userFormData.isConsultant, props.userData]);
 
   async function fetchClients() {
     setIsLoadingClients(true);
@@ -59,17 +81,15 @@ export default function UserForm(props: UserFormProps) {
       }
 
       const data = await response.json();
-      console.log("Fetched clients:", data); // Debug log
 
       // Map to correct structure - API already filters clients
       const mappedClients = Array.isArray(data)
-        ? data.map((user: any) => ({
+        ? data.map((user: UserType) => ({
             id: user.id.toString(), // Convert to string for consistency
             name: user.name,
           }))
         : [];
 
-      console.log("Mapped clients:", mappedClients); // Debug log
       setClientList(mappedClients);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -86,9 +106,44 @@ export default function UserForm(props: UserFormProps) {
       clientList: formData.isConsultant === "true" ? selectedClients : null,
     };
 
+    if (props.isEdit) {
+      handleSendData(dataToSend, "PUT");
+    } else {
+      handleSendData(dataToSend, "POST");
+    }
+  }
+
+  async function handleDeleteUser(formData: UserType) {
+    try {
+      const response = await fetch("/api/users/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+
+      // Close dialog on success
+      props.onOpenChange(false);
+
+      props.onSuccess();
+      handleDialogOpen();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      alert("Erro ao deletar usuário. Por favor, tente novamente.");
+    }
+  }
+
+  async function handleSendData(dataToSend: UserType, method: string) {
     try {
       const response = await fetch("/api/users", {
-        method: "POST",
+        method: method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -104,19 +159,18 @@ export default function UserForm(props: UserFormProps) {
           return;
         }
 
-        throw new Error(errorData.message || "Failed to create user");
+        throw new Error(
+          errorData.message || props.isEdit
+            ? "Failed to edit user"
+            : "Failed to create user"
+        );
       }
-
-      const result = await response.json();
-      console.log("User created:", result);
 
       // Close dialog on success
       props.onOpenChange(false);
 
-      // Reset form
-      setUserFormData({} as UserType);
-      setSelectedClients([]);
-      setActiveTab("info");
+      props.onSuccess();
+      handleDialogOpen();
     } catch (error) {
       console.error("Error creating user:", error);
       alert("Erro ao criar usuário. Por favor, tente novamente.");
@@ -152,15 +206,30 @@ export default function UserForm(props: UserFormProps) {
 
   function getClientNameById(clientId: string) {
     const client = clientList.find((client) => client.id === clientId);
-    console.log(client);
     return client?.name || clientId; // Fallback to ID if name not found
   }
 
   function handleDialogOpen() {
     props.onOpenChange(!props.open);
+
     if (!props.open) {
       setActiveTab("info");
-      setUserFormData({} as UserType);
+      setUserFormData({
+        id: "0",
+        name: "",
+        email: "",
+        phone: "",
+        cpf: "",
+        age: "",
+        address: "",
+        addon: "",
+        cep: "",
+        state: "",
+        isConsultant: "",
+        clientList: null,
+        createdAt: "",
+        lastUpdated: "",
+      });
       setSelectedClients([]);
     }
   }
@@ -176,21 +245,28 @@ export default function UserForm(props: UserFormProps) {
         >
           <FieldGroup>
             <DialogHeader className="flex flex-row place-content-end mt-3">
-              <DialogTitle hidden>Criação de usuário</DialogTitle>
+              <DialogTitle hidden>
+                {props.isEdit ? "Edição de usuário" : "Criação de usuário"}
+              </DialogTitle>
               <Button
                 type="submit"
                 className="w-fit flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium"
               >
-                Criar usuário
-                <Plus className="w-4 h-4" />
+                {props.isEdit ? "Editar usuário" : "Criar usuário"}
+                {props.isEdit ? (
+                  <Pencil className="w-4 h-4" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
               </Button>
               <Button
+                onClick={() => handleDeleteUser(userFormData)}
                 hidden={!props.isEdit}
                 type="button"
                 className="w-fit flex items-center gap-2 hover:bg-red-800 text-white rounded-md px-4 py-2 text-sm font-medium"
               >
                 Deletar usuário
-                <Plus className="w-4 h-4" />
+                <Trash className="w-4 h-4" />
               </Button>
             </DialogHeader>
 
