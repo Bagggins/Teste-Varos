@@ -12,6 +12,7 @@ import { Field, FieldGroup, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/src/contexts/toastcontext";
 
 import { UserType } from "@/src/Types/user";
 import { Pencil, Plus, Trash, X } from "lucide-react";
@@ -51,8 +52,8 @@ export default function UserForm(props: UserFormProps) {
   const [clientList, setClientList] = useState<ClientType[]>([]);
   const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const { showToast } = useToast();
 
-  // Fetch clients when dialog opens and user is consultant
   useEffect(() => {
     if (props.open && userFormData.isConsultant === "true") {
       fetchClients();
@@ -134,9 +135,10 @@ export default function UserForm(props: UserFormProps) {
 
       props.onSuccess();
       handleDialogOpen();
+      showToast("Usuário deletado com sucesso!", "success");
     } catch (error) {
       console.error("Error deleting user:", error);
-      alert("Erro ao deletar usuário. Por favor, tente novamente.");
+      showToast("Erro ao deletar usuário!", "success");
     }
   }
 
@@ -171,9 +173,18 @@ export default function UserForm(props: UserFormProps) {
 
       props.onSuccess();
       handleDialogOpen();
+      showToast(
+        props.isEdit
+          ? "Usuário editado com sucesso!"
+          : "Usuário criado com sucesso!",
+        "success"
+      );
     } catch (error) {
       console.error("Error creating user:", error);
-      alert("Erro ao criar usuário. Por favor, tente novamente.");
+      showToast(
+        props.isEdit ? "Erro ao editar Usuário!" : "Erro ao criar Usuário!",
+        "error"
+      );
     }
   }
 
@@ -274,6 +285,7 @@ export default function UserForm(props: UserFormProps) {
               <div>
                 <Label htmlFor="user-type">Tipo do usuário</Label>
                 <select
+                  disabled={props.isEdit}
                   value={userFormData.isConsultant || undefined}
                   id="user-type"
                   name="user-type"
