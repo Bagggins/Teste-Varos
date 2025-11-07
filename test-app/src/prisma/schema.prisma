@@ -9,15 +9,18 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  created_at DateTime @default(now())
-  email      String   @unique
-  name       String
-  age        String
-  cpf        String
-  cep        Int
-  address    String
-  addon      String
-  phone      String
-  type       String
+  id           Int      @id @default(autoincrement())
+  createdAt    DateTime @default(now())
+  email        String   @unique
+  name         String?
+  age          String?
+  cpf          String?
+  cep          String?
+  address      String?
+  state        String?
+  addon        String?
+  phone        String?
+  isConsultant String?
+  lastUpdated  DateTime @default(now())
+  clientList   String[]
 }

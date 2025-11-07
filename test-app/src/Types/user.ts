@@ -1,0 +1,16 @@
+export type UserType = {
+	id: string, 
+  createdAt: string, 
+  email: string, 
+  name: string, 
+  age: string, 
+  cpf: string, 
+  cep: string, 
+  address: string, 
+	state: string,
+  addon: string, 
+  phone: string, 
+  isConsultant: string | null, 
+  lastUpdated: string, 
+  clientList?: string[] | null, 
+}
