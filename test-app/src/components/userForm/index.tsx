@@ -250,7 +250,7 @@ export default function UserForm(props: UserFormProps) {
               </DialogTitle>
               <Button
                 type="submit"
-                className="w-fit flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium"
+                className="w-fit flex items-center gap-2 bg-[#1B3F1B] hover:bg-green-900 text-[#00F700] rounded-md px-4 py-2 text-sm font-medium"
               >
                 {props.isEdit ? "Editar usuário" : "Criar usuário"}
                 {props.isEdit ? (

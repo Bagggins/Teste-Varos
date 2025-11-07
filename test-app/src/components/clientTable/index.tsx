@@ -221,7 +221,7 @@ export default function ClientTable() {
   const isLoading = isLoadingConsultants || isLoadingClients;
 
   return (
-    <div className="flex min-h-screen bg-[#0f0f0f] text-gray-100">
+    <div className="flex min-h-screen bg-[#0f0f0f] text-gray-100 ">
       <main className="flex-1 p-8">
         <h2 className="text-2xl font-semibold mb-6">Dashboard</h2>
 
@@ -237,7 +237,7 @@ export default function ClientTable() {
             <div className="flex gap-2">
               <Button
                 onClick={() => setIsNewUserFormOpen(true)}
-                className="flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white rounded-md px-4 py-2 text-sm font-medium"
+                className="flex items-center gap-2 bg-[#1B3F1B] hover:bg-green-900 text-[#00F700] rounded-md px-4 py-2 text-sm font-medium"
               >
                 Criar usuário
                 <Plus className="w-4 h-4" />
@@ -257,7 +257,7 @@ export default function ClientTable() {
                   isLoadingClients ||
                   selectedConsultantId === "all"
                 }
-                className="flex items-center gap-2 bg-green-800 hover:bg-green-900 text-white disabled:opacity-50"
+                className="flex items-center gap-2 bg-[#1B3F1B] hover:bg-green-900 text-[#00F700] disabled:opacity-50"
               >
                 Editar consultor
                 <Pencil className="w-4 h-4" />
@@ -301,7 +301,7 @@ export default function ClientTable() {
                           <SelectItem
                             key={consultant.id}
                             value={consultant.id.toString()}
-                            className="text-gray-100 focus:bg-gray-800 focus:text-gray-100"
+                            className="text-gray-100  focus:bg-gray-800 focus:text-gray-100"
                           >
                             {consultant.name}
                           </SelectItem>
