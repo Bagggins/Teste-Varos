@@ -1,5 +1,4 @@
 "use client";
-//ajustar selects!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 import { Button } from "@/components/ui/button";
 import {
@@ -217,7 +216,7 @@ export default function UserForm(props: UserFormProps) {
 
   function getClientNameById(clientId: string) {
     const client = clientList.find((client) => client.id === clientId);
-    return client?.name || clientId; // Fallback to ID if name not found
+    return client?.name || clientId;
   }
 
   function handleDialogOpen() {
@@ -497,7 +496,7 @@ export default function UserForm(props: UserFormProps) {
                       onChange={(e) => {
                         if (e.target.value) {
                           addClient(e.target.value);
-                          e.target.value = ""; // Reset select
+                          e.target.value = "";
                         }
                       }}
                       disabled={isLoadingClients}
